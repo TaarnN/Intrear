@@ -4,6 +4,8 @@
 
 Intrear is an AST‑based interpreter written in TypeScript. It gives you full control over **building**, **type‑checking**, **optimizing** and **executing** custom AST nodes—ideal for learning, scripting, testing new language ideas, or embedding DSLs in your projects.
 
+[🔗 Github Link](https://github.com/TaarnN/Intrear)
+
 ## ❗️ Note on Language Creation
 
 While Intrear is described as a “next‑gen way to create your own programming language,” it’s important to clarify that **Intrear is only the interpreter part** of that process.
