@@ -1,0 +1,45 @@
+{
+  "name": "intrear",
+  "version": "0.1.3",
+  "description": "Next-gen way to create your own programming language!",
+  "main": "dist/index.js",
+  "types": "dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "types": "./dist/types/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "ROADMAP.md"
+  ],
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist && tsc --project tsconfig.types.json"
+  },
+  "keywords": [
+    "ast",
+    "ast-interpreter",
+    "abstract-syntax-tree",
+    "interpreter",
+    "scripting-language",
+    "language-engine",
+    "code-analysis",
+    "type-inference",
+    "optimizer",
+    "tree-walk",
+    "functional-language",
+    "intrear",
+    "typescript",
+    "language",
+    "programming-language",
+    "tools",
+    "framework"
+  ],
+  "author": "ttaarrnn",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
+}
