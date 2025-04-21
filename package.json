@@ -1,6 +1,6 @@
 {
   "name": "intrear",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Next-gen way to create your own programming language!",
   "main": "dist/index.js",
   "types": "dist/types/index.d.ts",
