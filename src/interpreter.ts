@@ -22,7 +22,8 @@ export type Type =
   | "any"
   | { kind: "function"; paramTypes: Type[]; returnType: Type }
   | { kind: "array"; elementType: Type }
-  | { kind: "object"; properties: Record<string, Type> };
+  | { kind: "object"; properties: Record<string, Type> }
+  | { kind: "pointer"; to: Type };
 
 export type varTypes =
   | "number"
@@ -36,13 +37,17 @@ export type varTypes =
   | "any"
   | "function"
   | "array"
-  | "object";
+  | "object"
+  | "pointer";
 
 export function compareTypes(a: Type, b: Type): boolean {
   if (typeof a === "string" && typeof b === "string") {
     return a === b;
   }
   if (typeof a === "object" && typeof b === "object") {
+    if (a.kind === "pointer" && b.kind === "pointer") {
+      return compareTypes(a.to, b.to);
+    }
     if (a.kind === "function" && b.kind === "function") {
       if (a.paramTypes.length !== b.paramTypes.length) return false;
       for (let i = 0; i < a.paramTypes.length; i++) {
@@ -134,27 +139,39 @@ export class ExecutionContext {
   }
 
   private injectBuiltIns() {
-    this.setVariable("print", (...args: any[]) => console.log(...args));
-    this.setVariable("typeOf", (val: any) =>
-      Array.isArray(val) ? "array" : typeof val
-    );
-    this.setVariable("now", () => Date.now());
-    this.setVariable("random", () => Math.random());
-    this.setVariable("isNaN", (x: any) => isNaN(x));
-    this.setVariable("abs", (x: number) => Math.abs(x));
-    this.setVariable("sqrt", (x: number) => Math.sqrt(x));
-    this.setVariable("floor", (x: number) => Math.floor(x));
-    this.setVariable("ceil", (x: number) => Math.ceil(x));
-    this.setVariable("fetch", async (url: string) => {
-      const res = await fetch(url);
-      return await res.text();
+    const builtIns: Record<string, (...args: any[]) => any> = {
+      print: (...args: any[]) => console.log(...args),
+      printSelf: () => console.log(this),
+      typeOf: (val: any) => (Array.isArray(val) ? "array" : typeof val),
+      now: () => Date.now(),
+      random: () => Math.random(),
+      isNaN: (x: any) => isNaN(x),
+      abs: (x: number) => Math.abs(x),
+      sqrt: (x: number) => Math.sqrt(x),
+      floor: (x: number) => Math.floor(x),
+      ceil: (x: number) => Math.ceil(x),
+      fetch: async (url: string) => {
+        const res = await fetch(url);
+        return await res.text();
+      },
+      temporaryRm: (x: string) => {
+        const saved = this.getVariable(x);
+        delete this.variables[x];
+        return () => {
+          this.setVariable(x, saved);
+        };
+      },
+    };
+    const keys = Object.keys(builtIns);
+    keys.forEach((key) => {
+      this.setVariable(key, builtIns[key]);
     });
   }
 
   public getVariable(name: string): any {
     if (name in this.variables) return this.variables[name];
     if (this.parent) return this.parent.getVariable(name);
-    throw new Error(`Undefined variable: ${name}`);
+    return undefined;
   }
 
   public setVariable(name: string, value: any): void {
@@ -252,8 +269,20 @@ export class VariableDeclarationNode extends ASTNode {
       ) {
         val = this.expression.toFunction(context);
       } else {
-        throw new Error(`Variable '${this.name}' expected a function literal`);
+        const result = this.expression.execute(context);
+        if (typeof result !== "function") {
+          throw new Error(
+            `Variable '${this.name}' expected a function, got ${typeof result}`
+          );
+        }
+        val = result;
       }
+    } else if (this.varType === "pointer") {
+      const result = this.expression.execute(context);
+      if (!result?.__isPtr) {
+        throw new Error(`Expected pointer, got ${typeof result}`);
+      }
+      val = result;
     } else {
       val = this.expression.execute(context);
 
@@ -264,6 +293,7 @@ export class VariableDeclarationNode extends ASTNode {
         undefined: [(v) => v === undefined, "undefined"],
         null: [(v) => v === null, "null"],
         bigint: [(v) => typeof v === "bigint", "bigint"],
+        any: [(v) => true, "any"],
         array: [(v) => Array.isArray(v), "array"],
         object: [
           (v) => v !== null && typeof v === "object" && !Array.isArray(v),
@@ -288,31 +318,57 @@ export class VariableDeclarationNode extends ASTNode {
   }
 
   inferType(env: TypeEnvironment): Type {
-    const actualType = this.expression.inferType(env);
-    const typeMap: Record<string, Type> = {
-      n_: "number",
-      s_: "string",
-      b_: "boolean",
-      u_: "undefined",
-      l_: "null",
-      x_: "bigint",
-      a_: actualType,
-      o_: actualType,
-      f_: actualType,
-    };
-    const expected = typeMap[this.varType];
-    if (!expected) {
-      throw new Error(`Unsupported variable type: ${this.varType}`);
+    if (this.varType === "function") {
+      const actualType = this.expression.inferType(env);
+
+      if (typeof actualType === "object" && actualType.kind === "function") {
+        env.setType(this.name, actualType);
+        return actualType;
+      } else {
+        throw new Error(
+          `Type mismatch in declaration of '${
+            this.name
+          }': expected function type, got ${typeToString(actualType)}`
+        );
+      }
+    } else if (this.varType === "pointer") {
+      const actualType = this.expression.inferType(env);
+      if (typeof actualType === "object" && actualType.kind === "pointer") {
+        env.setType(this.name, actualType);
+        return actualType;
+      }
+      throw new Error(`Expected pointer type, got ${typeToString(actualType)}`);
+    } else {
+      const actualType = this.expression.inferType(env);
+      const typeMap: Record<string, Type> = {
+        number: "number",
+        string: "string",
+        boolean: "boolean",
+        null: "null",
+        undefined: "undefined",
+        bigint: "bigint",
+        symbol: "symbol",
+        void: "void",
+        any: "any",
+        array: actualType,
+        object: actualType,
+      };
+      const expected = typeMap[this.varType];
+      if (!expected) {
+        throw new Error(`Unsupported variable type: ${this.varType}`);
+      }
+      if (!compareTypes(actualType, expected)) {
+        throw new Error(
+          `Type mismatch in declaration of '${
+            this.name
+          }': expected ${typeToString(expected)}, got ${typeToString(
+            actualType
+          )}`
+        );
+      }
+      env.setType(this.name, actualType);
+      return actualType;
     }
-    if (!compareTypes(actualType, expected)) {
-      throw new Error(
-        `Type mismatch in declaration of '${
-          this.name
-        }': expected ${typeToString(expected)}, got ${typeToString(actualType)}`
-      );
-    }
-    env.setType(this.name, actualType);
-    return actualType;
   }
 }
 
@@ -539,7 +595,7 @@ export class FunctionCallNode extends ASTNode {
     }
 
     const evaluated = this.args.map((arg) =>
-      arg instanceof FunctionLiteralNode
+      arg instanceof FunctionLiteralNode || arg instanceof ArrowFunctionNode
         ? arg.toFunction(context)
         : arg.execute(context)
     );
@@ -608,6 +664,14 @@ export class VariableReferenceNode extends ASTNode {
 
   inferType(env: TypeEnvironment): Type {
     return env.getType(this.name);
+  }
+
+  toReference(ctx: ExecutionContext) {
+    return {
+      __isPtr: true as const,
+      get: () => ctx.getVariable(this.name),
+      set: (v: any) => ctx.setVariable(this.name, v),
+    };
   }
 }
 
@@ -910,6 +974,42 @@ export class IndexAssignmentNode extends ASTNode {
   }
 }
 
+export class IndexAccessNode extends ASTNode {
+  constructor(public array: ASTNode, public index: ASTNode) {
+    super();
+  }
+
+  execute(context: ExecutionContext) {
+    const arr = this.array.execute(context);
+    const i = this.index.execute(context);
+    if (!Array.isArray(arr)) throw new Error("Target is not an array");
+    return arr[i];
+  }
+
+  inferType(env: TypeEnvironment) {
+    const arrType = this.array.inferType(env);
+    if (typeof arrType === "object" && arrType.kind === "array") {
+      return arrType.elementType;
+    }
+    return "any";
+  }
+
+  toReference(context: ExecutionContext) {
+    const arr = this.array.execute(context);
+    const i = this.index.execute(context);
+    if (!Array.isArray(arr)) throw new Error("Target is not an array");
+
+    return {
+      __isPtr: true as const,
+      get: () => arr[i],
+      set: (v: any) => {
+        arr[i] = v;
+      },
+    };
+  }
+}
+
+
 // ---------------------------------------------------
 // ObjectLiteralNode - Inline object definition
 // ---------------------------------------------------
@@ -968,6 +1068,26 @@ export class PropertyAccessNode extends ASTNode {
     }
     return "any";
   }
+
+  toReference(context: ExecutionContext) {
+    const obj = this.object.execute(context);
+    if (obj == null)
+      throw new Error("Cannot get reference of property on null/undefined");
+  
+    const key =
+      typeof this.property === "string"
+        ? this.property
+        : this.property.execute(context);
+  
+    return {
+      __isPtr: true as const,
+      get: () => obj[key],
+      set: (v: any) => {
+        obj[key] = v;
+      },
+    };
+  }
+  
 }
 
 // ---------------------------------------------------
@@ -1334,6 +1454,71 @@ export class TryCatchNode extends ASTNode {
     catchEnv.setType(this.catchVar, "any");
     this.catchBlock.forEach((stmt) => stmt.inferType(catchEnv));
     return "void";
+  }
+}
+
+// ---------------------------------------------------
+// Pointer Feature
+// ---------------------------------------------------
+export class AddressOfNode extends ASTNode {
+  constructor(public target: ASTNode) {
+    super();
+  }
+
+  execute(ctx: ExecutionContext): any {
+    if (typeof (this.target as any).toReference === "function") {
+      return (this.target as any).toReference(ctx);
+    }
+    throw new Error(`Cannot take address of non‐lvalue: ${this.target}`);
+  }
+  inferType(env: TypeEnvironment): Type {
+    const t = this.target.inferType(env);
+    return { kind: "pointer", to: t };
+  }
+}
+export class DereferenceNode extends ASTNode {
+  constructor(public ptrExpr: ASTNode) {
+    super();
+  }
+
+  execute(ctx: ExecutionContext): any {
+    const ptr = this.ptrExpr.execute(ctx);
+    if (!ptr?.__isPtr) {
+      throw new Error(`Cannot dereference non‐pointer: ${ptr}`);
+    }
+    return ptr.ctx.getVariable(ptr.name);
+  }
+
+  inferType(env: TypeEnvironment): Type {
+    const ptrType = this.ptrExpr.inferType(env);
+    if (typeof ptrType === "object" && ptrType.kind === "pointer") {
+      return ptrType.to;
+    }
+    throw new Error(
+      `Type error: tried to dereference non‐pointer ${typeToString(ptrType)}`
+    );
+  }
+}
+
+export class PointerAssignmentNode extends ASTNode {
+  constructor(public ptrExpr: ASTNode, public valueExpr: ASTNode) { super(); }
+  execute(ctx: ExecutionContext) {
+    const ref = this.ptrExpr.execute(ctx);
+    if (!ref.__isPtr) throw new Error(`Not a pointer`);
+    const val = this.valueExpr.execute(ctx);
+    ref.set(val);
+    return val;
+  }
+  inferType(env: TypeEnvironment) {
+    const ptrT = this.ptrExpr.inferType(env);
+    if (typeof ptrT==="object" && ptrT.kind==="pointer") {
+      const vT = this.valueExpr.inferType(env);
+      if (!compareTypes(ptrT.to, vT)) {
+        throw new Error(`Type mismatch in pointer assignment`);
+      }
+      return vT;
+    }
+    throw new Error(`Not pointer type`);
   }
 }
 

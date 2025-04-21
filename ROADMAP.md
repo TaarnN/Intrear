@@ -23,7 +23,6 @@ Intrear is a statically typed, dynamically executed scripting engine powered by 
 - [x] Scoped `break`/`continue` 
 - [x] Unified Result model (`return`, `break`, `continue`, `error`)
 - [ ] Type aliases (`type User = {...}`)
-- [ ] Runtime inspector for debugging
 - [ ] CLI or web REPL for live testing
 - [ ] Pretty error messages with context
 
@@ -38,26 +37,16 @@ Intrear is a statically typed, dynamically executed scripting engine powered by 
 
 ---
 
-## 🎯 Stage 4: Developer Ergonomics
-- [ ] Code formatter (`intrear fmt`)
-- [ ] Autocomplete and type hints (via LSP?)
-- [ ] Built-in test runner (`intrear test`)
-- [ ] Browser-based REPL playground
-- [ ] Step-by-step debugger / visual tracer
-- [ ] Snapshot & restore runtime state
-
----
-
-## 🚀 Stage 5: Syntax Parser & Language Host
+## 🚀 Stage 4: Syntax Parser & Language Host
 - [ ] Full text parser (PEG.js, Lezer, ANTLR, etc.)
-- [ ] Compile .ir source files to AST
+- [ ] Compile .inr source files to AST
 - [ ] Command-line runner for Intrear source
 - [ ] Source maps and debugging info
 - [ ] File I/O and external module loading
 
 ---
 
-## 👑 Stage 6: Power User Features
+## 👑 Stage 5: Power User Features
 - [ ] Class declarations with methods and constructors
 - [ ] Inheritance and polymorphic behavior
 - [ ] Pattern matching (`match ... with`)

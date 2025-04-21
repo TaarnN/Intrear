@@ -5,6 +5,7 @@
 Intrear is an AST‑based interpreter written in TypeScript. It gives you full control over **building**, **type‑checking**, **optimizing** and **executing** custom AST nodes—ideal for learning, scripting, testing new language ideas, or embedding DSLs in your projects.
 
 [🔗 Github Link](https://github.com/TaarnN/Intrear)
+[🔗 Npm Link](https://www.npmjs.com/package/intrear)
 
 ## ❗️ Note on Language Creation
 
@@ -14,30 +15,30 @@ To build a full interpreted programming language, you typically need:
 
 1. **Tokenizer (or Lexer)**  
    Converts raw source code into a list of meaningful tokens (e.g., keywords, identifiers, symbols).
-   ***Example frameworks: Chevrotain, Moo, jison-lex***
+   **_Example frameworks: Chevrotain, Moo, jison-lex_**
 
 2. **Parser**  
    Takes those tokens and builds an **Abstract Syntax Tree (AST)**—a structured representation of the code.
-   ***Example frameworks: Chevrotain, Nearley, Peggy, Jison***
+   **_Example frameworks: Chevrotain, Nearley, Peggy, Jison_**
 
 3. **Interpreter**  
    Walks the AST to evaluate and execute the code.
-   ***Framework: Intrear***
+   **_Framework: Intrear_**
 
 👉 **Intrear covers only step 3: the interpreter.**  
 You can build your own tokenizer and parser, then plug the AST into Intrear to execute it.
 
-## v0.1 Changelog
+## v0.2 Changelog
 
-Add return, break, continue and error signals.
-They're:
+Added 
 
-- `ReturnNode`
-- `BreakNode`
-- `ContinueNode`
-- `ErrorNode`
+- AddressOfNode (for pointers)
+- DereferenceNode (for pointers)
+- PointerAssignmentNode (for pointers)
+- IndexAccessNode
+- temporaryRm (built-in func)
 
-respectively.
+and fixed bugs
 
 ## 🔍 What is an AST Node?
 
@@ -126,7 +127,7 @@ new Interpreter(nodes).execute();
 ### ✅ Declare a Variable
 
 ```ts
-new VariableDeclarationNode("number", "a", new LiteralNode(5))
+new VariableDeclarationNode("number", "a", new LiteralNode(5));
 ```
 
 Equivalents to
@@ -148,7 +149,7 @@ new VariableDeclarationNode(
       new VariableReferenceNode("b"),
     ])
   )
-)
+);
 ```
 
 Equivalents to
@@ -164,7 +165,7 @@ new IfNode(
   new OperatorNode("==", [new LiteralNode(3), new LiteralNode(3)]),
   [new FunctionCallNode("print", [new LiteralNode("Equal!")])],
   [new FunctionCallNode("print", [new LiteralNode("Not equal!")])]
-)
+);
 ```
 
 Equivalents to
@@ -187,9 +188,9 @@ new VariableDeclarationNode(
     name: new LiteralNode("John Doe"),
   })
 ),
-new FunctionCallNode("print", [
-  new PropertyAccessNode(new VariableReferenceNode("user"), "name"),
-])
+  new FunctionCallNode("print", [
+    new PropertyAccessNode(new VariableReferenceNode("user"), "name"),
+  ]);
 ```
 
 Equivalents to
@@ -208,7 +209,7 @@ CustomASTNode((context: ExecutionContext) => {
   setTimeout(() => {
     console.log("Hello");
   }, 1000);
-}, "void")
+}, "void");
 ```
 
 Equivalents to
