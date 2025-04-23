@@ -1,4 +1,4 @@
-![logo](https://www.github.com/TaarnN/Intrear/main/assets/logo.png)
+![logo](https://github.com/TaarnN/Intrear/blob/main/assets/logo.png?raw=true)
 
 # 🧠 Intrear (Beta)
 
