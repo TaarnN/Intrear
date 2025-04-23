@@ -13,7 +13,8 @@
   },
   "files": [
     "dist",
-    "ROADMAP.md"
+    "ROADMAP.md",
+    "assets"
   ],
   "scripts": {
     "build": "bun build src/index.ts --outdir dist && tsc --project tsconfig.types.json"

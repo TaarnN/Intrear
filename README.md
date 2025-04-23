@@ -1,3 +1,5 @@
+![logo](https://www.github.com/TaarnN/Intrear/main/assets/logo.png)
+
 # 🧠 Intrear (Beta)
 
 **Such an AST Node Interpreter**
@@ -6,7 +8,7 @@ Intrear is an AST‑based interpreter written in TypeScript. It gives you full c
 
 If you like my framework, I would be happy if you could share it with others. As the framework becomes more popular, it will inspire me to make Intrear even more powerful and stable.
 
-[🔗 Github Link](https://github.com/TaarnN/Intrear)
+[🔗 Github Link](https://www.github.com/TaarnN/Intrear)
 [🔗 Npm Link](https://www.npmjs.com/package/intrear)
 
 ## ❗️ Note on Language Creation
